@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -57,7 +58,7 @@ func DeclareAndBind(conn *amqp.Connection, exchange, queueName, key string, queu
 		nil,   // args
 	)
 	if err != nil {
-		fmt.Println("unable to declare Queue ...")
+		log.Printf("unable to declare Queue ... error: %v\n", err)
 		return nil, amqp.Queue{}, err
 	}
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 
@@ -13,7 +14,9 @@ import (
 )
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	fmt.Println("Starting Peril server...")
+
 	conctString := "amqp://guest:guest@localhost:5672/"
 	connection, err := amqp.Dial(conctString)
 	if err != nil {
@@ -32,40 +35,27 @@ func main() {
 		fmt.Println("unable to establish create connection channel...")
 		return
 	}
-	err = pubsub.PublishJSON(channel,
-		routing.ExchangePerilDirect,
-		routing.PauseKey,
-		routing.PlayingState{
-			IsPaused: true,
-		},
-	)
-	if err != nil {
-		fmt.Println("unable to pusblish message")
-		return
-	}
-	_, _, err = pubsub.DeclareAndBind(
-		connection,
-		routing.ExchangePerilDirect,
-		fmt.Sprintf("%v.%v", routing.PauseKey, userName),
-		routing.PauseKey,
-		pubsub.Transient,
-	)
-	if err != nil {
-		fmt.Println("unable to declare and bind")
-		return
-	}
 
 	//use NewGameState function to create a new game state
 	gameState := gamelogic.NewGameState(userName)
 
-// 📌  use SubscribeJson 📝 🗑️
+	// 📌  use SubscribeJson 📝 🗑️
 	pubsub.SubscribeJSON(
 		connection,
 		routing.ExchangePerilDirect,
 		"pause."+userName,
 		routing.PauseKey,
 		pubsub.Transient,
-		handlerPause(gameState))
+		handlerPause(gameState),
+	)
+	pubsub.SubscribeJSON(
+		connection,
+		routing.ExchangePerilTopic,
+		"army_moves."+userName,
+		"army_moves.*",
+		pubsub.Transient,
+		handlerMove(gameState),
+	)
 
 	// 📌  collect data from queue 📝 🗑️
 	for {
@@ -83,11 +73,22 @@ func main() {
 				continue
 			}
 		case "move":
-			_, err := gameState.CommandMove(userInputWords)
+			move, err := gameState.CommandMove(userInputWords)
 			if err != nil {
-				fmt.Println(err)
+				log.Printf("unable to pusblish message. error: %v\n", err)
 				continue
 			}
+
+			err = pubsub.PublishJSON(channel,
+				routing.ExchangePerilTopic,
+				"army_moves."+userName,
+				move,
+			)
+			if err != nil {
+				log.Printf("unable to pusblish message. error:%v\n", err)
+				continue
+			}
+			log.Println("message published successfully")
 
 		case "status":
 			gameState.CommandStatus()

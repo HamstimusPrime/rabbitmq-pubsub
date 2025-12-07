@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	gamelogic "github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
@@ -37,7 +38,7 @@ func main() {
 		pubsub.Durable)
 
 	if err != nil {
-		fmt.Println("unable to declare and bind Queue...")
+		log.Println("unable to declare and bind Queue...")
 	}
 
 	for {
