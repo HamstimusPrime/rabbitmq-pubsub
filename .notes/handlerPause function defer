@@ -1,0 +1,2 @@
+we use this defer statement to simulate the CLI symbol that shows a user that they could type a new command:  
+`> user input🀫`

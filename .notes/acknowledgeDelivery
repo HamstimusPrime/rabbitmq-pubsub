@@ -1,0 +1,8 @@
+The core functionality of the **_`acknowledgeDelivery()`_** function is to take a non-empty
+channel of delivery objects, loop over each of the objects,
+convert each object into a generic struct object(T) and then call a function
+with the struct object passed to it. After the function has been called on each object, 
+we then take each delivery object and acknowlede it 
+by calling the **_`delivery.Ack()`_** method on it 😤
+
+ 

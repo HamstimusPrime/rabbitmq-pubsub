@@ -1,0 +1,2 @@
+**hello** we take the channel we created and call the consume method on it.The consume method makes the queue start sending data to the channel that called it. The data sent back would be a channel of data(**`ch <-`**)
+
