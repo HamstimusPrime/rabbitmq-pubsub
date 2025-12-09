@@ -16,6 +16,14 @@ const (
 	Transient SimpleQueueType = "transient"
 )
 
+type AckType int
+
+const (
+	Ack         AckType = iota // automatically becomes 0
+	NackRequeue                // automatically becomes 1
+	NackDiscard                // automatically becomes 2
+)
+
 func PublishJSON[T any](ch *amqp.Channel, exchange, key string, val T) error {
 	jsonBytes, err := json.Marshal(val)
 	if err != nil {
@@ -79,7 +87,7 @@ func SubscribeJSON[T any](
 	queueName,
 	key string,
 	queueType SimpleQueueType,
-	handler func(T),
+	handler func(T) AckType,
 ) error {
 	channel, _, err := DeclareAndBind(
 		conn,
@@ -114,8 +122,7 @@ func SubscribeJSON[T any](
 }
 
 // 📌  acknowledgeDelivery 📝 🗑️
-
-func acknowledgeDelivery[T any](delivery <-chan amqp.Delivery, handler func(T)) {
+func acknowledgeDelivery[T any](delivery <-chan amqp.Delivery, handler func(T) AckType) {
 	for message := range delivery {
 		var payload T
 		err := json.Unmarshal(message.Body, &payload)
@@ -124,7 +131,18 @@ func acknowledgeDelivery[T any](delivery <-chan amqp.Delivery, handler func(T)) 
 			fmt.Printf("from ack, err: %v\n", err)
 			continue
 		}
-		handler(payload)
-		message.Ack(false)
+
+		ackType := handler(payload)
+		switch ackType {
+		case Ack:
+			message.Ack(false)
+			fmt.Println("Ack")
+		case NackDiscard:
+			message.Nack(false, false)
+			fmt.Println("NackDiscard")
+		case NackRequeue:
+			message.Nack(false, true)
+			fmt.Println("NackRequeue")
+		}
 	}
 }
