@@ -1,0 +1,6 @@
+amqp.Table is a datatype whose purpose is to pass in extra configuration when we declare a queue on a given channel using `channel.QueueDeclare()`
+
+---
+
+In this case we are trying to setup an extra config to tell rabbitMQ to create another exchange called
+**`'x-dead-letter-exchange'`**. The exchange would be where messages that have not been acknowledged get sent to. The x-dead-letter-exchange is a field of the table type. it is a special, predefined argument name that RabbitMQ understands. We set its value to a key we specify

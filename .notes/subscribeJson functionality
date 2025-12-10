@@ -1,1 +1,2 @@
 the subscribeJSON function lets us attach a function to a queue bound to a certain exchange so that whenever data(message) is present in the queue, the function attached to it gets called. The binding of the queue to the exchange is done using the _'DeclareAndBind'_ function within the subscribeJSON function.
+
