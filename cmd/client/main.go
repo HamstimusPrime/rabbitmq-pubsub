@@ -54,7 +54,16 @@ func main() {
 		"army_moves."+userName,
 		"army_moves.*",
 		pubsub.Transient,
-		handlerMove(gameState),
+		handlerMove(gameState, channel),
+	)
+
+	pubsub.SubscribeJSON(
+		connection,
+		routing.ExchangePerilTopic,
+		"war",
+		"army_moves.*",
+		pubsub.Durable,
+		handlerWarMessage(gameState),
 	)
 
 	// 📌  collect data from queue 📝 🗑️
@@ -78,7 +87,6 @@ func main() {
 				log.Printf("unable to pusblish message. error: %v\n", err)
 				continue
 			}
-
 			err = pubsub.PublishJSON(channel,
 				routing.ExchangePerilTopic,
 				"army_moves."+userName,
