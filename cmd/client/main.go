@@ -61,9 +61,9 @@ func main() {
 		connection,
 		routing.ExchangePerilTopic,
 		"war",
-		"army_moves.*",
+		routing.WarRecognitionsPrefix+"."+userName,
 		pubsub.Durable,
-		handlerWarMessage(gameState),
+		handlerWarMessage(gameState, channel),
 	)
 
 	// 📌  collect data from queue 📝 🗑️

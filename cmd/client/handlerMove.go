@@ -19,12 +19,13 @@ func handlerMove(gs *gamelogic.GameState, publishCh *amqp.Channel) func(gamelogi
 		switch moveOutcome {
 		case gamelogic.MoveOutcomeSamePlayer:
 			log.Println("acknowledge type is Ack")
-			return pubsub.NackDiscard
+			return pubsub.Ack
 		case gamelogic.MoveOutComeSafe:
 			log.Println("acknowledge type is NackReque")
 			return pubsub.Ack
 		case gamelogic.MoveOutcomeMakeWar:
-			//publish a message to the topic exchange with this routing key: $WARPREFIX.$USERNAME
+			log.Printf("Move player: %+v", move.Player)
+			log.Printf("Defender: %+v", gs.GetPlayerSnap())
 			player := gs.GetPlayerSnap()
 			warResponse := gamelogic.RecognitionOfWar{
 				Attacker: move.Player,
@@ -33,20 +34,18 @@ func handlerMove(gs *gamelogic.GameState, publishCh *amqp.Channel) func(gamelogi
 			err := pubsub.PublishJSON(
 				publishCh,
 				routing.ExchangePerilTopic,
-				routing.WarRecognitionsPrefix+"."+player.Username,
+				routing.WarRecognitionsPrefix+"."+move.Player.Username,
 				warResponse,
 			)
 
 			if err != nil {
 				log.Printf("unable to publish war response. err: %v", err)
+				return pubsub.NackRequeue
 			}
 			log.Println("acknowledge type is NackDiscard")
-			return pubsub.NackRequeue
+			return pubsub.Ack
 		}
 		fmt.Println("error: unknown move outcome")
 		return pubsub.NackDiscard
 	}
 }
-
-
-

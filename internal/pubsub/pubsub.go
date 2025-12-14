@@ -1,7 +1,9 @@
 package pubsub
 
 import (
+	"bytes"
 	"context"
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -40,6 +42,35 @@ func PublishJSON[T any](ch *amqp.Channel, exchange, key string, val T) error {
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        jsonBytes,
+		},
+	)
+
+	if err != nil {
+		fmt.Println("Error:", err)
+		return err
+	}
+	return nil
+}
+
+func PublishGob[T any](ch *amqp.Channel, exchange, key string, val T) error {
+	//encode val T to gob bytes
+	var buffer bytes.Buffer
+	encoder := gob.NewEncoder(&buffer)
+	err := encoder.Encode(val)
+
+	if err != nil {
+		return err
+	}
+
+	err = ch.PublishWithContext(
+		context.Background(),
+		exchange,
+		key,
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "application/gob",
+			Body:        buffer.Bytes(),
 		},
 	)
 
@@ -150,4 +181,26 @@ func acknowledgeDelivery[T any](delivery <-chan amqp.Delivery, handler func(T) A
 			fmt.Println("NackRequeue")
 		}
 	}
+}
+
+func PublishGameLog(gameLog routing.GameLog, channel *amqp.Channel) error {
+	/*this function calls publishGob in order to serialize and
+	publish the gameLog argument to a queue in an exchange with
+	the following values
+	exchange: Topic
+	routing key: GamelogSlug.Username
+	username: Name of player that initiated the war
+	GamelogSlug if a constant in routing package*/
+
+	err := PublishGob(
+		channel,
+		routing.ExchangePerilTopic,
+		routing.GameLogSlug+"."+gameLog.Username,
+		gameLog,
+	)
+
+	if err != nil {
+		return err
+	}
+	return nil
 }
