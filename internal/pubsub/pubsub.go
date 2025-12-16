@@ -125,7 +125,7 @@ func SubscribeJSON[T any](
 	queueType SimpleQueueType,
 	handler func(T) AckType,
 ) error {
-	channel, _, err := DeclareAndBind(
+	delivery, err := subscribe[T](
 		conn,
 		exchange,
 		queueName,
@@ -133,26 +133,10 @@ func SubscribeJSON[T any](
 		queueType,
 	)
 	if err != nil {
-		fmt.Println("unable to bind Queue ...")
+		fmt.Println("subscribe process failed ...")
 		return err
 	}
 
-	// 📌  consuming data from channel 📝 🗑️
-
-	delivery, err := channel.Consume(
-		queueName,
-		"",
-		false,
-		false,
-		false,
-		false,
-		nil,
-	)
-	if err != nil {
-		fmt.Println("unable to unmarshall delivery")
-		fmt.Printf("from consume. err: %v\n", err)
-		return err
-	}
 	go acknowledgeDelivery(delivery, handler)
 	return nil
 }
@@ -165,7 +149,7 @@ func acknowledgeDelivery[T any](delivery <-chan amqp.Delivery, handler func(T) A
 		if err != nil {
 			fmt.Println("unable to unmarshall delivery")
 			fmt.Printf("from ack, err: %v\n", err)
-			continue
+			return
 		}
 
 		ackType := handler(payload)
@@ -203,4 +187,99 @@ func PublishGameLog(gameLog routing.GameLog, channel *amqp.Channel) error {
 		return err
 	}
 	return nil
+}
+
+func SubscribeGob[T any](
+	conn *amqp.Connection,
+	exchange,
+	queueName,
+	key string,
+	queueType SimpleQueueType,
+	handler func(T) AckType,
+) error {
+	/*
+		subscribe Gob would consume(have access to) data sent  to
+		a certain channel. The data that it expects would come in as binary (Gob). That binary
+		would need to be converted (decoded) into the generic type T that is passed into subscribeGob.
+		It then returns an error if the subscribe process fails.
+	*/
+	delivery, err := subscribe[T](
+		conn,
+		exchange,
+		queueName,
+		key,
+		queueType,
+	)
+	if err != nil {
+		log.Println("subscribe process failed ...")
+		return err
+	}
+
+	//decode delivery
+	//delivery has to be converted into generic type and then called with handler
+	for message := range delivery {
+		//message would be a binary file. we would need to decode it into a generic and pass it into handler
+		var payload T
+		gameLog, err := decode(message.Body, payload)
+		if err != nil {
+			log.Println("unable to decode bytes")
+			return err
+		}
+		//write to gamelogic.WriteLog
+		ackType := handler(gameLog)
+		if ackType == Ack {
+			message.Ack(true)
+		}
+
+	}
+	return nil
+
+}
+
+func subscribe[T any](
+	conn *amqp.Connection,
+	exchange,
+	queueName,
+	key string,
+	queueType SimpleQueueType,
+) (<-chan amqp.Delivery, error) {
+	channel, _, err := DeclareAndBind(
+		conn,
+		exchange,
+		queueName,
+		key,
+		queueType,
+	)
+	if err != nil {
+		fmt.Println("unable to bind Queue ...")
+		return nil, err
+	}
+
+	delivery, err := channel.Consume(
+		queueName,
+		"",
+		false,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		fmt.Println("unable to unmarshall delivery")
+		fmt.Printf("from consume. err: %v\n", err)
+		return nil, err
+	}
+
+	return delivery, nil
+}
+
+func decode[T any](data []byte, gl T) (T, error) {
+
+	buf := bytes.NewBuffer(data)
+	dec := gob.NewDecoder(buf)
+	err := dec.Decode(&gl)
+	if err != nil {
+		return gl, err
+	}
+	return gl, nil
 }
