@@ -29,13 +29,6 @@ func main() {
 		fmt.Println("unable to establish create connection channel...")
 		return
 	}
-	//re-write this section to subscribe to gameLog queue using subscribeGob()
-	// _, _, err = pubsub.DeclareAndBind(
-	// 	connection,
-	// 	routing.ExchangePerilTopic,
-	// 	routing.GameLogSlug,
-	// 	routing.GameLogSlug+".*",
-	// 	pubsub.Durable)
 
 	err = pubsub.SubscribeGob(
 		connection,
